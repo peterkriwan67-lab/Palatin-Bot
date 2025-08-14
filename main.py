@@ -2,8 +2,9 @@ import os, time, threading, requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from flask import Flask
 
-# === Secrets aus Replit ===
+# === Secrets ===
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
@@ -18,10 +19,23 @@ HEADERS = {
     "SEC-Alert Bot (contact: your-email@example.com)",  # gerne anpassen
     "Accept": "application/atom+xml",
 }
-CHECK_INTERVAL = 60  # Sek.
+CHECK_INTERVAL = 60  # Sekunden
 STATE_FILE = "last_entry_id.txt"
 SEEN_FILE = "seen_ids.txt"
 BERLIN = ZoneInfo("Europe/Berlin")
+
+# === Mini-Webserver (für UptimeRobot) ===
+app = Flask(__name__)
+
+
+@app.route("/")
+def home():
+    return "SEC Bot läuft", 200
+
+
+def keep_alive():
+    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8080),
+                     daemon=True).start()
 
 
 # === Helpers ===
@@ -148,14 +162,14 @@ def main_loop():
                 time.sleep(CHECK_INTERVAL)
                 continue
 
-            # Alle Einträge NUR bis zum zuletzt bekannten einsammeln (neuere)
+            # Neue Einträge seit letztem Check
             newer = []
             for ent in entries:  # neueste zuerst
                 if ent["id"] == last_id:
                     break
                 newer.append(ent)
 
-            # In zeitlicher Reihenfolge senden (älteste → neueste)
+            # In zeitlicher Reihenfolge senden
             for ent in reversed(newer):
                 if ent["id"] in seen_ids:
                     continue
@@ -177,7 +191,7 @@ def main_loop():
                 seen_ids.add(ent["id"])
                 save_seen_ids(seen_ids)
 
-            # last_id immer auf die aktuell neueste ID setzen
+            # last_id auf neueste ID setzen
             newest_id = entries[0]["id"]
             if newest_id != last_id:
                 last_id = newest_id
@@ -190,4 +204,5 @@ def main_loop():
 
 
 if __name__ == "__main__":
-    main_loop()  # Background Worker braucht keinen Webserver
+    keep_alive()  # wichtig für UptimeRobot
+    main_loop()
