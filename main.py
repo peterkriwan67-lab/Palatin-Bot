@@ -2,7 +2,6 @@ import os, time, threading, requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from flask import Flask
 
 # === Secrets aus Replit ===
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -23,19 +22,6 @@ CHECK_INTERVAL = 60  # Sek.
 STATE_FILE = "last_entry_id.txt"
 SEEN_FILE = "seen_ids.txt"
 BERLIN = ZoneInfo("Europe/Berlin")
-
-# === Mini-Webserver (für UptimeRobot optional) ===
-app = Flask(__name__)
-
-
-@app.route("/")
-def home():
-    return "SEC Bot läuft", 200
-
-
-def keep_alive():
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8080),
-                     daemon=True).start()
 
 
 # === Helpers ===
@@ -204,5 +190,4 @@ def main_loop():
 
 
 if __name__ == "__main__":
-    keep_alive()  # optional; für UptimeRobot-Ping
-    main_loop()
+    main_loop()  # Background Worker braucht keinen Webserver
